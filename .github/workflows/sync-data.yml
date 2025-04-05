@@ -1,0 +1,42 @@
+name: Sync DokeyAI Data
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每24小时运行一次
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Get latest release info
+        id: latest_release
+        uses: pozetroninc/github-action-get-latest-release@master
+        with:
+          repository: DokeyAI/dokeyai-data
+          
+      - name: Download JSON files from latest release
+        run: |
+          echo "Latest release: ${{ steps.latest_release.outputs.release }}"
+          
+          # 下载产品数据
+          curl -L -o dokeyai-products.json "https://github.com/DokeyAI/dokeyai-data/releases/download/${{ steps.latest_release.outputs.release }}/dokeyai-products.json"
+          
+          # 下载分类数据
+          curl -L -o dokeyai-categories.json "https://github.com/DokeyAI/dokeyai-data/releases/download/${{ steps.latest_release.outputs.release }}/dokeyai-categories.json"
+          
+          # 下载目录数据
+          curl -L -o dokeyai-directories.json "https://github.com/DokeyAI/dokeyai-data/releases/download/${{ steps.latest_release.outputs.release }}/dokeyai-directories.json"
+          
+          # 查看文件大小确认下载成功
+          ls -la *.json
+          
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add *.json
+          git diff --staged --quiet || (git commit -m "Update data files to latest release: ${{ steps.latest_release.outputs.release }}" && git push)
